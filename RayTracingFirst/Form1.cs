@@ -63,7 +63,7 @@ namespace RayTracingFirst
             var b = Ch / 2;
             Vector3 O = new Vector3(0f, 0f, 0f);
 
-            ///*
+            /*
             for (int x = - Cw / 2; x < Cw / 2; x++)
             {
 

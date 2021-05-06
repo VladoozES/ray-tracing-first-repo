@@ -1,2 +1,3 @@
 .vs
-RayTracingFirst/bin/Debug
+/RayTracingFirst/bin/Debug
+/RayTracingFirst/obj/Debug
