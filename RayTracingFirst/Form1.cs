@@ -89,20 +89,12 @@ namespace RayTracingFirst
 
         private Color TraceRay(Vector3 O, ViewportPixel D, double tMin, double tMax)
         {
-            var closetT = tMax;
-            Sphere closetSphere = null;
-            foreach (Sphere sphere in scene.spheres)
-            {
-                List<double> tList = IntersectRaySphere(O, D, sphere);
-                for (var i = 0; i < tList.Count; i++)
-                    if (tList[i] >= tMin && tList[i] <= tMax && tList[i] < closetT)
-                    {
-                        closetT = tList[i];
-                        closetSphere = sphere;
-                    }
-            }
+            var temp = ClosestIntersection(O, D, tMin, tMax);
+            var closetT = temp.Item2;
+            var closetSphere = temp.Item1;
+
             if (closetSphere == null) return BACKGROUND_COLOR;
-            var P = O + new Vector3((float)D.vector.X * (float)closetT, (float)D.vector.Y * (float)closetT, (float)D.vector.Z * (float)closetT);
+            var P = O + new Vector3(D.vector.X * (float)closetT, D.vector.Y * (float)closetT, D.vector.Z * (float)closetT);
             var N = P - closetSphere.center;
             N = N / N.Length();
             var computeLighting = ComputeLighting(P, N, -D.vector, closetSphere.specular);
@@ -134,6 +126,7 @@ namespace RayTracingFirst
             var intensity = 0.0;
             foreach (Light light in scene.lights)
             {
+                float tMax;
                 if (light.GetLightType() == "Ambient")
                     intensity += light.intensity;
                 else
@@ -142,11 +135,17 @@ namespace RayTracingFirst
                     if (light.GetLightType() == "Point")
                     {
                         L = ((PointLight)light).position - P;
+                        tMax = 1;
                     }
                     else
                     {
                         L = ((DirectionalLight)light).direction;
+                        tMax = 1000;
                     }
+
+                    //Проверка тени
+                    var shadowTemp = ClosestIntersection(P, new ViewportPixel(L.X, L.Y, L.Z), 0.001, tMax);
+                    if (shadowTemp.Item1 != null) continue;
 
                     //Диффузность
                     var n_dot_l = Vector3.Dot(N, L);
@@ -166,6 +165,23 @@ namespace RayTracingFirst
                 }
             }
             return intensity;
+        }
+
+        private Tuple<Sphere, double> ClosestIntersection(Vector3 O, ViewportPixel D, double tMin, double tMax)
+        {
+            var closet_t = tMax;
+            Sphere closet_sphere = null;
+            foreach (Sphere sphere in scene.spheres)
+            {
+                List<double> tList = IntersectRaySphere(O, D, sphere);
+                for (var i = 0; i < tList.Count; i++)
+                    if (tList[i] >= tMin && tList[i] <= tMax && tList[i] < closet_t)
+                    {
+                        closet_t = tList[i];
+                        closet_sphere = sphere;
+                    }
+            }
+            return new Tuple<Sphere, double>(closet_sphere, closet_t);
         }
     }
 }
