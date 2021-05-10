@@ -47,16 +47,20 @@ namespace RayTracingFirst
             g.Clear(Color.White);
 
             scene = new Scene();
-            scene.addSphere(new Sphere(new Vector3(0, -1, 3), 1, Color.Red));
-            scene.addSphere(new Sphere(new Vector3(2, 0, 4), 1, Color.Blue));
-            scene.addSphere(new Sphere(new Vector3(-2, 0, 4), 1, Color.Green));
+            scene.addSphere(new Sphere(new Vector3(0, -1, 3), 1, Color.Red, 500));
+            scene.addSphere(new Sphere(new Vector3(2, 0, 4), 1, Color.Blue, 500));
+            scene.addSphere(new Sphere(new Vector3(-2, 0, 4), 1, Color.Green, 25));
+            scene.addSphere(new Sphere(new Vector3(0, -5001, 0), 5000, Color.Yellow, 1000));
+            scene.addLight(new AmbientLight(0.2));
+            scene.addLight(new PointLight(new Vector3(2, 1, 0), 0.6));
+            scene.addLight(new DirectionalLight(new Vector3(1, 4, 4), 0.2));
 
 
             canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height);
 
             int Cw = pictureBox1.Width;
             int Ch = pictureBox1.Height;
-            int Vw = 1;
+            int Vw = 2;
             int Vh = 1;
             double d = 1;
             var a = Cw / 2;
@@ -71,8 +75,7 @@ namespace RayTracingFirst
                 {
 
                     ViewportPixel D = ViewportPixel.CanvasToViewPort(x + a, b - y, d, Cw, Ch, Vw, Vh);
-                    D.X = D.X - (double) Vw / 2;
-                    D.Y = (double)Vh / 2 - D.Y; 
+                    D = new ViewportPixel(D.vector.X - (float)Vw / 2, (float)Vh / 2 - D.vector.Y, D.vector.Z);
                     Color color = TraceRay(O, D, 1, 100);
                     canvas.SetPixel(x + a, b - y, color);
 
@@ -99,12 +102,20 @@ namespace RayTracingFirst
                     }
             }
             if (closetSphere == null) return BACKGROUND_COLOR;
-            return closetSphere.color;
+            var P = O + new Vector3((float)D.vector.X * (float)closetT, (float)D.vector.Y * (float)closetT, (float)D.vector.Z * (float)closetT);
+            var N = P - closetSphere.center;
+            N = N / N.Length();
+            var computeLighting = ComputeLighting(P, N, -D.vector, closetSphere.specular);
+            if (computeLighting > 1) computeLighting = 1;
+            var res_color = Color.FromArgb((int)(closetSphere.color.R * computeLighting),
+                                            (int)(closetSphere.color.G * computeLighting),
+                                            (int)(closetSphere.color.B * computeLighting));
+            return res_color;
         }
 
         private List<double> IntersectRaySphere(Vector3 O, ViewportPixel D, Sphere sphere)
         {
-            var vectorD = new Vector3((float) D.X, (float) D.Y, (float) D.Z);
+            var vectorD = new Vector3((float) D.vector.X, (float) D.vector.Y, (float) D.vector.Z);
             List<double> result = new List<double>();
             var k1 = Vector3.Dot(vectorD, vectorD);
             var k2 = 2 * Vector3.Dot(O - sphere.center, vectorD);
@@ -116,6 +127,45 @@ namespace RayTracingFirst
             result.Add((-k2 + Math.Sqrt(discriminant)) / (2 * k1));
             result.Add((-k2 - Math.Sqrt(discriminant)) / (2 * k1));
             return result;
+        }
+
+        private double ComputeLighting(Vector3 P, Vector3 N, Vector3 V, int s)
+        {
+            var intensity = 0.0;
+            foreach (Light light in scene.lights)
+            {
+                if (light.GetLightType() == "Ambient")
+                    intensity += light.intensity;
+                else
+                {
+                    var L = new Vector3();
+                    if (light.GetLightType() == "Point")
+                    {
+                        L = ((PointLight)light).position - P;
+                    }
+                    else
+                    {
+                        L = ((DirectionalLight)light).direction;
+                    }
+
+                    //Диффузность
+                    var n_dot_l = Vector3.Dot(N, L);
+                    if (n_dot_l > 0)
+                    {
+                        intensity += light.intensity * n_dot_l / (N.Length() * L.Length());
+                    }
+
+                    //Зеркальность
+                    if (s != -1)
+                    {
+                        var R = 2 * N * Vector3.Dot(N, L) - L;
+                        var r_dot_v = Vector3.Dot(R, V);
+                        if (r_dot_v > 0)
+                            intensity += light.intensity * Math.Pow(r_dot_v / (R.Length() * V.Length()), s);
+                    }
+                }
+            }
+            return intensity;
         }
     }
 }

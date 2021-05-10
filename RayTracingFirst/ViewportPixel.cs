@@ -1,21 +1,24 @@
-﻿namespace RayTracingFirst
+﻿using System.Numerics;
+
+namespace RayTracingFirst
 {
     internal class ViewportPixel
     {
-        public double X;
-        public double Y;
-        public double Z;
+        public Vector3 vector;
+        //public double X;
+        //public double Y;
+        //public double Z;
 
-        public ViewportPixel(double X, double Y, double Z)
+        public ViewportPixel(float X, float Y, float Z)
         {
-            this.X = X;
-            this.Y = Y;
-            this.Z = Z;
+            vector.X = X;
+            vector.Y = Y;
+            vector.Z = Z;
         }
 
         public static ViewportPixel CanvasToViewPort(int cX, int cY, double d, int Cw, int Ch, int Vw, int Vh)
         {
-            return new ViewportPixel((double)cX * Vw / Cw , (double)cY * Vh / Ch, d);
+            return new ViewportPixel((float)cX * Vw / Cw , (float)cY * Vh / Ch, (float)d);
         }
     }
 }
