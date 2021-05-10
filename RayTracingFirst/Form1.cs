@@ -47,10 +47,10 @@ namespace RayTracingFirst
             g.Clear(Color.White);
 
             scene = new Scene();
-            scene.addSphere(new Sphere(new Vector3(0, -1, 3), 1, Color.Red, 500));
-            scene.addSphere(new Sphere(new Vector3(2, 0, 4), 1, Color.Blue, 500));
-            scene.addSphere(new Sphere(new Vector3(-2, 0, 4), 1, Color.Green, 25));
-            scene.addSphere(new Sphere(new Vector3(0, -5001, 0), 5000, Color.Yellow, 1000));
+            scene.addSphere(new Sphere(new Vector3(0, -1, 3), 1, Color.Red, 500, 0.5f));
+            scene.addSphere(new Sphere(new Vector3(2, 0, 4), 1, Color.Blue, 500, 0.6f));
+            scene.addSphere(new Sphere(new Vector3(-2, 0, 4), 1, Color.Green, 25, 0.4f));
+            scene.addSphere(new Sphere(new Vector3(0, -5001, 0), 5000, Color.Yellow, 1000, 0.5f));
             scene.addLight(new AmbientLight(0.2));
             scene.addLight(new PointLight(new Vector3(2, 1, 0), 0.6));
             scene.addLight(new DirectionalLight(new Vector3(1, 4, 4), 0.2));
@@ -76,7 +76,7 @@ namespace RayTracingFirst
 
                     ViewportPixel D = ViewportPixel.CanvasToViewPort(x + a, b - y, d, Cw, Ch, Vw, Vh);
                     D = new ViewportPixel(D.vector.X - (float)Vw / 2, (float)Vh / 2 - D.vector.Y, D.vector.Z);
-                    Color color = TraceRay(O, D, 1, 100);
+                    Color color = TraceRay(O, D, 1, 1000, 3);
                     canvas.SetPixel(x + a, b - y, color);
 
                 }
@@ -87,7 +87,7 @@ namespace RayTracingFirst
             g.DrawImage(canvas, 0, 0);//*/
         }
 
-        private Color TraceRay(Vector3 O, ViewportPixel D, double tMin, double tMax)
+        private Color TraceRay(Vector3 O, ViewportPixel D, double tMin, double tMax, int recursionDepth)
         {
             var temp = ClosestIntersection(O, D, tMin, tMax);
             var closetT = temp.Item2;
@@ -99,10 +99,22 @@ namespace RayTracingFirst
             N = N / N.Length();
             var computeLighting = ComputeLighting(P, N, -D.vector, closetSphere.specular);
             if (computeLighting > 1) computeLighting = 1;
-            var res_color = Color.FromArgb((int)(closetSphere.color.R * computeLighting),
+            var localColor = Color.FromArgb((int)(closetSphere.color.R * computeLighting),
                                             (int)(closetSphere.color.G * computeLighting),
                                             (int)(closetSphere.color.B * computeLighting));
-            return res_color;
+
+            var r = closetSphere.reflective;
+            if (recursionDepth <= 0 || r <= 0)
+                return localColor;
+
+            var R = ReflectRay(-D.vector, N);
+            var reflectedColor = TraceRay(P, new ViewportPixel(R.X, R.Y, R.Z), 0.001, 1000, recursionDepth - 1);
+
+            var resultColor = Color.FromArgb((int)(localColor.R * (1 - r) + reflectedColor.R * r),
+                                            (int)(localColor.G * (1 - r) + reflectedColor.G * r),
+                                            (int)(localColor.B * (1 - r) + reflectedColor.B * r));
+
+            return resultColor;
         }
 
         private List<double> IntersectRaySphere(Vector3 O, ViewportPixel D, Sphere sphere)
@@ -154,10 +166,10 @@ namespace RayTracingFirst
                         intensity += light.intensity * n_dot_l / (N.Length() * L.Length());
                     }
 
-                    //Зеркальность
+                    //Блики
                     if (s != -1)
                     {
-                        var R = 2 * N * Vector3.Dot(N, L) - L;
+                        var R = ReflectRay(L, N);
                         var r_dot_v = Vector3.Dot(R, V);
                         if (r_dot_v > 0)
                             intensity += light.intensity * Math.Pow(r_dot_v / (R.Length() * V.Length()), s);
@@ -182,6 +194,11 @@ namespace RayTracingFirst
                     }
             }
             return new Tuple<Sphere, double>(closet_sphere, closet_t);
+        }
+
+        private Vector3 ReflectRay (Vector3 R, Vector3 N)
+        {
+            return 2 * N * Vector3.Dot(N, R) - R;
         }
     }
 }
