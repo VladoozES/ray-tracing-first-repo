@@ -48,6 +48,8 @@ namespace RayTracingFirst
 
             scene = new Scene();
             scene.addSphere(new Sphere(new Vector3(0, -1, 3), 1, Color.Red));
+            scene.addSphere(new Sphere(new Vector3(2, 0, 4), 1, Color.Blue));
+            scene.addSphere(new Sphere(new Vector3(-2, 0, 4), 1, Color.Green));
 
 
             canvas = new Bitmap(pictureBox1.Width, pictureBox1.Height);
